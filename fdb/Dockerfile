@@ -1,4 +1,4 @@
-# --- ECBUILD, METKIT
+# --- ECBUILD, ECKIT, METKIT, FDB
 
 FROM debian:bookworm-slim AS deps
 
@@ -47,7 +47,7 @@ RUN cd /usr/src/ && \
     make -j4 && \
     make install
 
-# --- FDB
+# --- FDB, eccodes
 # FROM scratch
 
 FROM mambaorg/micromamba:bullseye-slim
