@@ -57,11 +57,15 @@ COPY --from=deps /opt/eckit /opt/eckit
 COPY --from=deps /opt/metkit /opt/metkit
 COPY --from=deps /opt/fdb /opt/fdb
 
+ARG MAMBA_DOCKERFILE_ACTIVATE=1
+
 RUN micromamba install --yes --name base --channel conda-forge \
 	eccodes==2.30.0
 
-ENV PATH="$PATH:/opt/ecbuild/bin/:/opt/eckit/bin/"
+RUN python -m pip install --upgrade \
+    git+https://github.com/ecmwf/pyfdb.git@02692523ae83b6667dbfa189bbc49d37c3a14a0f
 
-ARG MAMBA_DOCKERFILE_ACTIVATE=1
+ENV PATH="$PATH:/opt/ecbuild/bin/:/opt/eckit/bin/:/opt/fdb/bin"
+ENV LD_LIBRARY_PATH="/opt/fdb/lib/:/opt/eckit/lib/"
 
 WORKDIR /
