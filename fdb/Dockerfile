@@ -50,22 +50,65 @@ RUN cd /usr/src/ && \
 # --- FDB, eccodes
 # FROM scratch
 
-FROM mambaorg/micromamba:bullseye-slim
+FROM mambaorg/micromamba:bullseye-slim as micromamba
+
+FROM debian:bookworm-slim
 
 COPY --from=deps /opt/ecbuild /opt/ecbuild
 COPY --from=deps /opt/eckit /opt/eckit
 COPY --from=deps /opt/metkit /opt/metkit
 COPY --from=deps /opt/fdb /opt/fdb
 
+USER root
+
+# if your image defaults to a non-root user, then you may want to make the
+# next 3 ARG commands match the values in your image. You can get the values
+# by running: docker run --rm -it my/image id -a
+ARG MAMBA_USER=mamba
+ARG MAMBA_USER_ID=1000
+ARG MAMBA_USER_GID=1000
+ENV MAMBA_USER=$MAMBA_USER
+ENV MAMBA_ROOT_PREFIX="/opt/conda"
+ENV MAMBA_EXE="/bin/micromamba"
+
+COPY --from=micromamba "$MAMBA_EXE" "$MAMBA_EXE"
+COPY --from=micromamba /usr/local/bin/_activate_current_env.sh /usr/local/bin/_activate_current_env.sh
+COPY --from=micromamba /usr/local/bin/_dockerfile_shell.sh /usr/local/bin/_dockerfile_shell.sh
+COPY --from=micromamba /usr/local/bin/_entrypoint.sh /usr/local/bin/_entrypoint.sh
+COPY --from=micromamba /usr/local/bin/_activate_current_env.sh /usr/local/bin/_activate_current_env.sh
+COPY --from=micromamba /usr/local/bin/_dockerfile_initialize_user_accounts.sh /usr/local/bin/_dockerfile_initialize_user_accounts.sh
+COPY --from=micromamba /usr/local/bin/_dockerfile_setup_root_prefix.sh /usr/local/bin/_dockerfile_setup_root_prefix.sh
+
+RUN /usr/local/bin/_dockerfile_initialize_user_accounts.sh && \
+    /usr/local/bin/_dockerfile_setup_root_prefix.sh
+
+RUN apt-get update && apt-get install -y ca-certificates fdb5
+
+USER $MAMBA_USER
+
+SHELL ["/usr/local/bin/_dockerfile_shell.sh"]
+
+ENTRYPOINT ["/usr/local/bin/_entrypoint.sh"]
+# Optional: if you want to customize the ENTRYPOINT and have a conda
+# environment activated, then do this:
+# ENTRYPOINT ["/usr/local/bin/_entrypoint.sh", "my_entrypoint_program"]
+
+# You can modify the CMD statement as needed....
+CMD ["/bin/bash"]
+
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
 
 RUN micromamba install --yes --name base --channel conda-forge \
-	eccodes==2.30.0
+	eccodes==2.30.0 \
+    python==3.10 \
+    git && \
+    micromamba clean --all --yes
 
-RUN python -m pip install --upgrade \
+RUN python3 -m pip install --upgrade \
     git+https://github.com/ecmwf/pyfdb.git@02692523ae83b6667dbfa189bbc49d37c3a14a0f
 
 ENV PATH="$PATH:/opt/ecbuild/bin/:/opt/eckit/bin/:/opt/fdb/bin"
-ENV LD_LIBRARY_PATH="/opt/fdb/lib/:/opt/eckit/lib/"
+# ENV LD_LIBRARY_PATH="/opt/eckit/lib/:/opt/fdb/lib/"
+ENV FDB5_CONFIG_FILE=/app/config.yaml
 
 WORKDIR /
