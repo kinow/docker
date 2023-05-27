@@ -1,5 +1,5 @@
-# --- ECBUILD, ECKIT, METKIT, FDB
-
+# -----------------------------------------------------------------------------
+# --- ecbuild, eccodes, eckit, metkit, fdb.
 FROM debian:bookworm-slim AS deps
 
 ARG ECBUILD_VERSION=3.7.2
@@ -70,12 +70,16 @@ RUN cd /usr/src/ && \
     make -j4 && \
     make install
 
-# --- FDB, eccodes
-# FROM scratch
-
+# -----------------------------------------------------------------------------
+# --- Micromamba / Conda (used later).
 FROM mambaorg/micromamba:bullseye-slim as micromamba
 
+# -----------------------------------------------------------------------------
+# --- Final base image.
 FROM debian:bookworm-slim
+
+# TODO: pyfdb is under development, so we are using a commit for now
+ARG PYFDB_VERSION=02692523ae83b6667dbfa189bbc49d37c3a14a0f
 
 COPY --from=deps /opt/ecbuild /opt/ecbuild
 COPY --from=deps /opt/eccodes /opt/eccodes
@@ -114,8 +118,14 @@ RUN apt-get update && \
     apt-get install --yes --no-install-suggests --no-install-recommends \
     ca-certificates \
     libaec0 \
+    libcurl4 \
     libcurl3-gnutls && \
     rm -rf /var/lib/apt/lists/*
+
+# Create the localroot and make it writable (otherwise fdb commands may
+# fail with "No writable roots available...).
+RUN mkdir --parents /app/localroot && \
+    chown --recursive $MAMBA_USER: /app
 
 USER $MAMBA_USER
 
@@ -137,7 +147,7 @@ RUN micromamba install --yes --name base --channel conda-forge \
     micromamba clean --all --yes
 
 RUN python3 -m pip install --upgrade \
-    git+https://github.com/ecmwf/pyfdb.git@02692523ae83b6667dbfa189bbc49d37c3a14a0f
+    git+https://github.com/ecmwf/pyfdb.git@${PYFDB_VERSION}
 
 ENV PATH="$PATH:/opt/ecbuild/bin/:/opt/eckit/bin/:/opt/fdb/bin"
 ENV LD_LIBRARY_PATH="/opt/eccodes/lib:/opt/eckit/lib/:/opt/metkit/lib/:/opt/fdb/lib/"
@@ -146,7 +156,41 @@ ENV \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# Install the Python package for EC-Codes, and shelf-check to confirm
+# both Python and system package are OK.
 RUN python3 -m pip install eccodes && \
     python3 -m eccodes selfcheck
 
-WORKDIR /
+# Copy the test data from pyfdb.
+COPY schema config.yaml myrequest test.py *.grib /app/
+
+# The schema file used in this image is from the tests of pyfdb:
+# https://github.com/ecmwf/pyfdb/blob/${PYFDB_VERSION}/tests/default_fdb_schema
+# Here we print the schema:
+RUN fdb-schema
+
+# The data used is also from pydfb:
+# https://github.com/ecmwf/pyfdb/tree/${PYFDB_VERSION}/tests
+# The data is in the GRIB format. Here we write the GRIB data into the FDB:
+RUN find /app -name "*.grib" -exec fdb-write {} \;
+
+# Here we dump the table of contents of the data:
+RUN fdb-dump class=rd,expver=xxxx,stream=oper,time=0000
+
+# If everything worked, this image should have the following installed and ready to be used:
+# - ecbuild (why not?)
+# - eccodes
+# - eckit
+# - metkit
+# - fdb
+# - micromamba / conda, with
+#   - python 3.10
+#   - pyeccodes
+#   - pyfdb (commit ${PYFDB_VERSION})
+#
+# To test, use FDB commands like:
+# - fdb-schema
+# - fdb-dump class=rd,expver=xxxx,stream=oper,time=0000
+# - fdb list class=rd,expver=xxxx,stream=oper,time=0000
+
+WORKDIR /app/
