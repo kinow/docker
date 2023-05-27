@@ -6,19 +6,40 @@ ARG ECBUILD_VERSION=3.7.2
 ARG ECKIT_VERSION=1.23.0
 ARG METKIT_VERSION=1.10.11
 ARG FDB_VERSION=5.11.10
+ARG ECCODES_VERSION=2.30.2
+
+# Install build-time dependencies.
+RUN apt-get update && \
+    apt-get install --yes --no-install-suggests --no-install-recommends \
+    libnetcdf-dev \
+    libaec0 && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update && apt-get install -y \
+    gfortran \
     git \
     cmake \
     build-essential && \
     rm -rf /var/lib/apt/lists/*
 
-# ecbuild layer
-# https://github.com/ecmwf/ecbuild/tags
-
+# Install ecbuild.
 RUN cd /opt/ && \
 	git clone --depth 1 --branch $ECBUILD_VERSION https://github.com/ecmwf/ecbuild.git
 
+ENV CMAKE_PREFIX_PATH="/opt/ecbuild/"
+
+# Install eccodes.
+RUN cd /usr/src/ && \
+    git clone --depth 1 --branch $ECCODES_VERSION https://github.com/ecmwf/eccodes.git && \
+    cd eccodes && \
+    mkdir build && \
+    cd build && \
+    cmake ../ -DCMAKE_INSTALL_PREFIX=/opt/eccodes && \
+    make -j4 && \
+    ctest && \
+    make install
+
+# Install eckit.
 RUN cd /usr/src/ && \
 	git clone --depth 1 --branch $ECKIT_VERSION https://github.com/ecmwf/eckit.git && \
 	cd eckit && \
@@ -29,6 +50,7 @@ RUN cd /usr/src/ && \
     make install && \
     /opt/eckit/bin/eckit-version
 
+# Install metkit.
 RUN cd /usr/src/ && \
 	git clone --depth 1 --branch $METKIT_VERSION https://github.com/ecmwf/metkit.git && \
 	cd metkit && \
@@ -38,6 +60,7 @@ RUN cd /usr/src/ && \
     make -j4 && \
     make install
 
+# Install fdb.
 RUN cd /usr/src/ && \
 	git clone --depth 1 --branch $FDB_VERSION https://github.com/ecmwf/fdb.git && \
 	cd fdb && \
@@ -55,6 +78,7 @@ FROM mambaorg/micromamba:bullseye-slim as micromamba
 FROM debian:bookworm-slim
 
 COPY --from=deps /opt/ecbuild /opt/ecbuild
+COPY --from=deps /opt/eccodes /opt/eccodes
 COPY --from=deps /opt/eckit /opt/eckit
 COPY --from=deps /opt/metkit /opt/metkit
 COPY --from=deps /opt/fdb /opt/fdb
@@ -78,11 +102,20 @@ COPY --from=micromamba /usr/local/bin/_entrypoint.sh /usr/local/bin/_entrypoint.
 COPY --from=micromamba /usr/local/bin/_activate_current_env.sh /usr/local/bin/_activate_current_env.sh
 COPY --from=micromamba /usr/local/bin/_dockerfile_initialize_user_accounts.sh /usr/local/bin/_dockerfile_initialize_user_accounts.sh
 COPY --from=micromamba /usr/local/bin/_dockerfile_setup_root_prefix.sh /usr/local/bin/_dockerfile_setup_root_prefix.sh
+# Ensure shared libs installed by the previous step are available.
+RUN set -ex \
+    && /sbin/ldconfig
 
 RUN /usr/local/bin/_dockerfile_initialize_user_accounts.sh && \
     /usr/local/bin/_dockerfile_setup_root_prefix.sh
 
-RUN apt-get update && apt-get install -y ca-certificates fdb5
+# Install run-time dependencies.
+RUN apt-get update && \
+    apt-get install --yes --no-install-suggests --no-install-recommends \
+    ca-certificates \
+    libaec0 \
+    libcurl3-gnutls && \
+    rm -rf /var/lib/apt/lists/*
 
 USER $MAMBA_USER
 
@@ -99,7 +132,6 @@ CMD ["/bin/bash"]
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
 
 RUN micromamba install --yes --name base --channel conda-forge \
-	eccodes==2.30.0 \
     python==3.10 \
     git && \
     micromamba clean --all --yes
@@ -108,7 +140,13 @@ RUN python3 -m pip install --upgrade \
     git+https://github.com/ecmwf/pyfdb.git@02692523ae83b6667dbfa189bbc49d37c3a14a0f
 
 ENV PATH="$PATH:/opt/ecbuild/bin/:/opt/eckit/bin/:/opt/fdb/bin"
-# ENV LD_LIBRARY_PATH="/opt/eckit/lib/:/opt/fdb/lib/"
+ENV LD_LIBRARY_PATH="/opt/eccodes/lib:/opt/eckit/lib/:/opt/metkit/lib/:/opt/fdb/lib/"
 ENV FDB5_CONFIG_FILE=/app/config.yaml
+ENV \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+RUN python3 -m pip install eccodes && \
+    python3 -m eccodes selfcheck
 
 WORKDIR /
