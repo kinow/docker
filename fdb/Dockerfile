@@ -12,10 +12,7 @@ ARG ECCODES_VERSION=2.30.2
 RUN apt-get update && \
     apt-get install --yes --no-install-suggests --no-install-recommends \
     libnetcdf-dev \
-    libaec0 && \
-    rm -rf /var/lib/apt/lists/*
-
-RUN apt-get update && apt-get install -y \
+    libaec0 \
     gfortran \
     git \
     cmake \
@@ -24,7 +21,7 @@ RUN apt-get update && apt-get install -y \
 
 # Install ecbuild.
 RUN cd /opt/ && \
-	git clone --depth 1 --branch $ECBUILD_VERSION https://github.com/ecmwf/ecbuild.git
+    git clone --depth 1 --branch $ECBUILD_VERSION https://github.com/ecmwf/ecbuild.git
 
 ENV CMAKE_PREFIX_PATH="/opt/ecbuild/"
 
@@ -41,8 +38,8 @@ RUN cd /usr/src/ && \
 
 # Install eckit.
 RUN cd /usr/src/ && \
-	git clone --depth 1 --branch $ECKIT_VERSION https://github.com/ecmwf/eckit.git && \
-	cd eckit && \
+    git clone --depth 1 --branch $ECKIT_VERSION https://github.com/ecmwf/eckit.git && \
+    cd eckit && \
     mkdir build && \
     cd build && \
     /opt/ecbuild/bin/ecbuild --prefix=/opt/eckit -- /usr/src/eckit/ && \
@@ -52,8 +49,8 @@ RUN cd /usr/src/ && \
 
 # Install metkit.
 RUN cd /usr/src/ && \
-	git clone --depth 1 --branch $METKIT_VERSION https://github.com/ecmwf/metkit.git && \
-	cd metkit && \
+    git clone --depth 1 --branch $METKIT_VERSION https://github.com/ecmwf/metkit.git && \
+    cd metkit && \
     mkdir build && \
     cd build && \
     /opt/ecbuild/bin/ecbuild --prefix=/opt/metkit -- -DECKIT_PATH=/opt/eckit/ /usr/src/metkit/ && \
@@ -62,8 +59,8 @@ RUN cd /usr/src/ && \
 
 # Install fdb.
 RUN cd /usr/src/ && \
-	git clone --depth 1 --branch $FDB_VERSION https://github.com/ecmwf/fdb.git && \
-	cd fdb && \
+    git clone --depth 1 --branch $FDB_VERSION https://github.com/ecmwf/fdb.git && \
+    cd fdb && \
     mkdir build && \
     cd build && \
     /opt/ecbuild/bin/ecbuild --prefix=/opt/fdb -- -DCMAKE_INSTALL_PREFIX=/opt/fdb /usr/src/fdb/ && \
