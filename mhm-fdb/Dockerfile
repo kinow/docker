@@ -142,8 +142,6 @@ CMD ["/bin/bash"]
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
 
 RUN micromamba install --yes --name base --channel conda-forge \
-    python==3.10 \
-    git \
     fypp==3.1 \
     cmake==3.26.3 \
     ninja==1.11.1 \
