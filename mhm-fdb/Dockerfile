@@ -211,8 +211,12 @@ RUN fdb-dump class=rd,expver=xxxx,stream=oper,time=0000
 # - fdb-dump class=rd,expver=xxxx,stream=oper,time=0000
 # - fdb list class=rd,expver=xxxx,stream=oper,time=0000
 
+# GSV Interface (BSC private repository)
+COPY --chown=$MAMBA_USER ./gsv_interface/ /tmp/gsv_interface/
+RUN cd /tmp/gsv_interface && python3 -m pip install .
+
 # mHM
-RUN MHM_BUILD_PARALLEL=1 pip install git+https://git.ufz.de/mhm/mhm.git@98c8466e07cc1b5a9cfd98a7a6f699526a11d260 --no-deps --no-build-isolation -vv
+RUN MHM_BUILD_PARALLEL=1 python3 -m pip install git+https://git.ufz.de/mhm/mhm.git@98c8466e07cc1b5a9cfd98a7a6f699526a11d260 --no-deps --no-build-isolation -vv
 
 WORKDIR /app/
 
