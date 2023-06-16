@@ -11,6 +11,7 @@ ARG ECCODES_VERSION=2.30.2
 # Install build-time dependencies.
 RUN apt-get update && \
     apt-get install --yes --no-install-suggests --no-install-recommends \
+    ca-certificates \
     libnetcdf-dev \
     libaec0 \
     gfortran \
