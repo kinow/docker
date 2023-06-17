@@ -1,0 +1,73 @@
+# -----------------------------------------------------------------------------
+# --- Micromamba / Conda (used later).
+FROM mambaorg/micromamba:bullseye-slim as micromamba
+
+# --- Final base image.
+# --- ecbuild, eccodes, eckit, metkit, fdb.
+FROM kinow/fdb:5.11.10-bookworm-slim as fdb
+
+# TODO: pyfdb is under development, so we are using a commit for now
+ARG PYFDB_VERSION=02692523ae83b6667dbfa189bbc49d37c3a14a0f
+
+USER root
+
+# if your image defaults to a non-root user, then you may want to make the
+# next 3 ARG commands match the values in your image. You can get the values
+# by running: docker run --rm -it my/image id -a
+ARG MAMBA_USER=mamba
+ARG MAMBA_USER_ID=1000
+ARG MAMBA_USER_GID=1000
+ENV MAMBA_USER=$MAMBA_USER
+ENV MAMBA_ROOT_PREFIX="/opt/conda"
+ENV MAMBA_EXE="/bin/micromamba"
+
+COPY --from=micromamba "$MAMBA_EXE" "$MAMBA_EXE"
+COPY --from=micromamba /usr/local/bin/_activate_current_env.sh /usr/local/bin/_activate_current_env.sh
+COPY --from=micromamba /usr/local/bin/_dockerfile_shell.sh /usr/local/bin/_dockerfile_shell.sh
+COPY --from=micromamba /usr/local/bin/_entrypoint.sh /usr/local/bin/_entrypoint.sh
+COPY --from=micromamba /usr/local/bin/_activate_current_env.sh /usr/local/bin/_activate_current_env.sh
+COPY --from=micromamba /usr/local/bin/_dockerfile_initialize_user_accounts.sh /usr/local/bin/_dockerfile_initialize_user_accounts.sh
+COPY --from=micromamba /usr/local/bin/_dockerfile_setup_root_prefix.sh /usr/local/bin/_dockerfile_setup_root_prefix.sh
+# Ensure shared libs installed by the previous step are available.
+RUN set -ex \
+    && /sbin/ldconfig
+
+RUN /usr/local/bin/_dockerfile_initialize_user_accounts.sh && \
+    /usr/local/bin/_dockerfile_setup_root_prefix.sh
+
+# Make localroot writable (otherwise fdb commands may
+# fail with "No writable roots available...).
+RUN chown --recursive $MAMBA_USER: /app
+
+USER $MAMBA_USER
+
+SHELL ["/usr/local/bin/_dockerfile_shell.sh"]
+
+ENTRYPOINT ["/usr/local/bin/_entrypoint.sh"]
+# Optional: if you want to customize the ENTRYPOINT and have a conda
+# environment activated, then do this:
+# ENTRYPOINT ["/usr/local/bin/_entrypoint.sh", "my_entrypoint_program"]
+
+# You can modify the CMD statement as needed....
+CMD ["/bin/bash"]
+
+ARG MAMBA_DOCKERFILE_ACTIVATE=1
+
+RUN micromamba install --yes --name base --channel conda-forge \
+      git \
+      python==3.10 && \
+    micromamba clean --all --yes
+
+RUN python3 -m pip install --upgrade \
+    git+https://github.com/ecmwf/pyfdb.git@${PYFDB_VERSION}
+
+ENV \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Install the Python package for EC-Codes, and shelf-check to confirm
+# both Python and system package are OK.
+RUN python3 -m pip install eccodes && \
+    python3 -m eccodes selfcheck
+
+WORKDIR /app/
