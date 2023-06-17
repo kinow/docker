@@ -69,15 +69,11 @@ RUN cd /usr/src/ && \
     make install
 
 # -----------------------------------------------------------------------------
-# --- Micromamba / Conda (used later).
-FROM mambaorg/micromamba:bullseye-slim as micromamba
-
-# -----------------------------------------------------------------------------
 # --- Final base image.
 FROM debian:bookworm-slim
 
 # TODO: pyfdb is under development, so we are using a commit for now
-ARG PYFDB_VERSION=02692523ae83b6667dbfa189bbc49d37c3a14a0f
+# ARG PYFDB_VERSION=02692523ae83b6667dbfa189bbc49d37c3a14a0f
 
 COPY --from=deps /opt/ecbuild /opt/ecbuild
 COPY --from=deps /opt/eccodes /opt/eccodes
@@ -87,77 +83,22 @@ COPY --from=deps /opt/fdb /opt/fdb
 
 USER root
 
-# if your image defaults to a non-root user, then you may want to make the
-# next 3 ARG commands match the values in your image. You can get the values
-# by running: docker run --rm -it my/image id -a
-ARG MAMBA_USER=mamba
-ARG MAMBA_USER_ID=1000
-ARG MAMBA_USER_GID=1000
-ENV MAMBA_USER=$MAMBA_USER
-ENV MAMBA_ROOT_PREFIX="/opt/conda"
-ENV MAMBA_EXE="/bin/micromamba"
-
-COPY --from=micromamba "$MAMBA_EXE" "$MAMBA_EXE"
-COPY --from=micromamba /usr/local/bin/_activate_current_env.sh /usr/local/bin/_activate_current_env.sh
-COPY --from=micromamba /usr/local/bin/_dockerfile_shell.sh /usr/local/bin/_dockerfile_shell.sh
-COPY --from=micromamba /usr/local/bin/_entrypoint.sh /usr/local/bin/_entrypoint.sh
-COPY --from=micromamba /usr/local/bin/_activate_current_env.sh /usr/local/bin/_activate_current_env.sh
-COPY --from=micromamba /usr/local/bin/_dockerfile_initialize_user_accounts.sh /usr/local/bin/_dockerfile_initialize_user_accounts.sh
-COPY --from=micromamba /usr/local/bin/_dockerfile_setup_root_prefix.sh /usr/local/bin/_dockerfile_setup_root_prefix.sh
-# Ensure shared libs installed by the previous step are available.
-RUN set -ex \
-    && /sbin/ldconfig
-
-RUN /usr/local/bin/_dockerfile_initialize_user_accounts.sh && \
-    /usr/local/bin/_dockerfile_setup_root_prefix.sh
-
 # Install run-time dependencies.
 RUN apt-get update && \
     apt-get install --yes --no-install-suggests --no-install-recommends \
       ca-certificates \
       libaec0 \
-      libcurl4 \
-      libcurl3-gnutls && \
+      libcurl3-gnutls \
+      libssl3 && \
     rm -rf /var/lib/apt/lists/*
 
 # Create the localroot and make it writable (otherwise fdb commands may
 # fail with "No writable roots available...).
-RUN mkdir --parents /app/localroot && \
-    chown --recursive $MAMBA_USER: /app
-
-USER $MAMBA_USER
-
-SHELL ["/usr/local/bin/_dockerfile_shell.sh"]
-
-ENTRYPOINT ["/usr/local/bin/_entrypoint.sh"]
-# Optional: if you want to customize the ENTRYPOINT and have a conda
-# environment activated, then do this:
-# ENTRYPOINT ["/usr/local/bin/_entrypoint.sh", "my_entrypoint_program"]
-
-# You can modify the CMD statement as needed....
-CMD ["/bin/bash"]
-
-ARG MAMBA_DOCKERFILE_ACTIVATE=1
-
-RUN micromamba install --yes --name base --channel conda-forge \
-      git \
-      python==3.10 && \
-    micromamba clean --all --yes
-
-RUN python3 -m pip install --upgrade \
-    git+https://github.com/ecmwf/pyfdb.git@${PYFDB_VERSION}
+RUN mkdir --parents /app/localroot
 
 ENV PATH="$PATH:/opt/ecbuild/bin/:/opt/eckit/bin/:/opt/fdb/bin"
 ENV LD_LIBRARY_PATH="/opt/eccodes/lib:/opt/eckit/lib/:/opt/metkit/lib/:/opt/fdb/lib/"
 ENV FDB5_CONFIG_FILE=/app/config.yaml
-ENV \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-# Install the Python package for EC-Codes, and shelf-check to confirm
-# both Python and system package are OK.
-RUN python3 -m pip install eccodes && \
-    python3 -m eccodes selfcheck
 
 # Copy the test data from pyfdb.
 COPY schema config.yaml myrequest test.py *.grib /app/
@@ -181,10 +122,6 @@ RUN fdb-dump class=rd,expver=xxxx,stream=oper,time=0000
 # - eckit
 # - metkit
 # - fdb
-# - micromamba / conda, with
-#   - python 3.10
-#   - pyeccodes
-#   - pyfdb (commit ${PYFDB_VERSION})
 #
 # To test, use FDB commands like:
 # - fdb-schema
@@ -192,3 +129,6 @@ RUN fdb-dump class=rd,expver=xxxx,stream=oper,time=0000
 # - fdb list class=rd,expver=xxxx,stream=oper,time=0000
 
 WORKDIR /app/
+
+# You can modify the CMD statement as needed....
+CMD ["/bin/bash"]
