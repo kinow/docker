@@ -11,13 +11,13 @@ ARG ECCODES_VERSION=2.30.2
 # Install build-time dependencies.
 RUN apt-get update && \
     apt-get install --yes --no-install-suggests --no-install-recommends \
-    ca-certificates \
-    libnetcdf-dev \
-    libaec0 \
-    gfortran \
-    git \
-    cmake \
-    build-essential && \
+      build-essential \
+      ca-certificates \
+      cmake \
+      gfortran \
+      git \
+      libaec0 \
+      libnetcdf-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Install ecbuild.
@@ -114,10 +114,10 @@ RUN /usr/local/bin/_dockerfile_initialize_user_accounts.sh && \
 # Install run-time dependencies.
 RUN apt-get update && \
     apt-get install --yes --no-install-suggests --no-install-recommends \
-    ca-certificates \
-    libaec0 \
-    libcurl4 \
-    libcurl3-gnutls && \
+      ca-certificates \
+      libaec0 \
+      libcurl4 \
+      libcurl3-gnutls && \
     rm -rf /var/lib/apt/lists/*
 
 # Create the localroot and make it writable (otherwise fdb commands may
@@ -140,8 +140,8 @@ CMD ["/bin/bash"]
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
 
 RUN micromamba install --yes --name base --channel conda-forge \
-    python==3.10 \
-    git && \
+      git \
+      python==3.10 && \
     micromamba clean --all --yes
 
 RUN python3 -m pip install --upgrade \
