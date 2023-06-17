@@ -72,6 +72,34 @@ RUN cd /usr/src/ && \
 # --- Final base image.
 FROM debian:bookworm-slim
 
+ARG AUTHOR
+ARG BUILD_DATE
+ARG IMAGE_VERSION
+ARG ECBUILD_VERSION
+ARG ECKIT_VERSION
+ARG METKIT_VERSION
+ARG FDB_VERSION
+ARG ECCODES_VERSION
+
+# Labels.
+LABEL org.label-schema.schema-version="1.0"
+LABEL org.label-schema.name="kinow/fdb"
+LABEL org.label-schema.maintainer="$MAINTAINER"
+LABEL org.label-schema.build-date="$BUILD_DATE"
+LABEL org.label-schema.description="Docker image with ECMWF FDB. \
+**This is not an official image**. The versions of \
+FDB and dependencies are pinned and available as \
+labels of the image as well."
+LABEL org.label-schema.docker.cmd="docker run -ti --rm kinow/fdb /bin/bash"
+
+LABEL org.label-schema.url="https://github.com/ecmwf/fdb"
+LABEL org.label-schema.vcs-url="https://github.com/kinow/docker/tree/master/fdb"
+LABEL br.eti.kinoshita.ecbuild_version="$ECBUILD_VERSION"
+LABEL br.eti.kinoshita.eckit_version="$ECKIT_VERSION"
+LABEL br.eti.kinoshita.metkit_version="$METKIT_VERSION"
+LABEL br.eti.kinoshita.fdb_version="$FDB_VERSION"
+LABEL br.eti.kinoshita.eccodes_version="$ECCODES_VERSION"
+
 # TODO: pyfdb is under development, so we are using a commit for now
 # ARG PYFDB_VERSION=02692523ae83b6667dbfa189bbc49d37c3a14a0f
 
