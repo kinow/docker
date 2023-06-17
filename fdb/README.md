@@ -14,7 +14,11 @@ IMAGE_VERSION="5.11.10-bookworm-slim"; docker build \
   --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:SZ') \
   --build-arg AUTHOR="$(getent passwd $USER | cut -d ':' -f 5 | cut -d ',' -f 1)" \
   --build-arg IMAGE_VERSION="${IMAGE_VERSION}" \
-  --tag "ces/tests-eric:${IMAGE_VERSION}" .
+  --tag "kinow/fdb:${IMAGE_VERSION}" .
 
 ```
 
+The image size is about 288MB, where the base image (debian)
+has 74.8 MB, ecbuild 1.42MB, eccodes 55.4 MB, eckit 48.9 MB,
+metkit 14MB, and FDB occupies 59.5 MB. The remaining space
+is used by test data.

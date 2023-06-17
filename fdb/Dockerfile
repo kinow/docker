@@ -84,7 +84,8 @@ ARG ECCODES_VERSION
 # Labels.
 LABEL org.label-schema.schema-version="1.0"
 LABEL org.label-schema.name="kinow/fdb"
-LABEL org.label-schema.maintainer="$MAINTAINER"
+LABEL org.label-schema.version="$IMAGE_VERSION"
+LABEL org.label-schema.maintainer="$AUTHOR"
 LABEL org.label-schema.build-date="$BUILD_DATE"
 LABEL org.label-schema.description="Docker image with ECMWF FDB. \
 **This is not an official image**. The versions of \
