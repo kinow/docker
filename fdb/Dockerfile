@@ -118,6 +118,7 @@ RUN apt-get update && \
       ca-certificates \
       libaec0 \
       libcurl3-gnutls \
+      libeccodes-tools \
       libssl3 && \
     rm -rf /var/lib/apt/lists/*
 
