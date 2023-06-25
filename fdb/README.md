@@ -14,7 +14,7 @@ IMAGE_VERSION="5.11.10-bookworm-slim"; docker build \
   --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:SZ') \
   --build-arg AUTHOR="$(getent passwd $USER | cut -d ':' -f 5 | cut -d ',' -f 1)" \
   --build-arg IMAGE_VERSION="${IMAGE_VERSION}" \
-  --tag "kinow/fdb:${IMAGE_VERSION}" .
+  --tag "kinow/fdb:${IMAGE_VERSION}" --tag "kinow/fdb:latest" .
 
 ```
 
