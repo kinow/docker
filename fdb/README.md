@@ -9,7 +9,7 @@ See the args and labels. Build could be performed with the
 following command, for example:
 
 ```bash
-IMAGE_VERSION="5.11.10-bookworm-slim"; docker build \
+IMAGE_VERSION="5.11.17-bookworm-slim"; docker build \
   --no-cache=true \
   --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:SZ') \
   --build-arg AUTHOR="$(getent passwd $USER | cut -d ':' -f 5 | cut -d ',' -f 1)" \

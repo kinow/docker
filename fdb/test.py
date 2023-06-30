@@ -137,18 +137,18 @@ with open(filename, 'wb') as o, pyfdb.retrieve(request) as i:
 
 
 
-request = {
-    'class': 'od',
-    'expver': '0001',
-    'stream': 'oper',
-    'date': '20040118',
-    'time': '0000',
-    'domain': 'g',
-    'type': 'an',
-    'levtype': 'sfc',
-    'step': 0,
-    'param': 151
-}
+# request = {
+#     'class': 'od',
+#     'expver': '0001',
+#     'stream': 'oper',
+#     'date': '20040118',
+#     'time': '0000',
+#     'domain': 'g',
+#     'type': 'an',
+#     'levtype': 'sfc',
+#     'step': 0,
+#     'param': 151
+# }
 print('')
 print('FDB retrieve')
 print('direct function, retrieve from request:', request)
@@ -186,6 +186,3 @@ print('')
 print('save to file ', filename)
 with open(filename, 'wb') as o, fdb.retrieve(request) as i:
     shutil.copyfileobj(i, o)
-
-
-

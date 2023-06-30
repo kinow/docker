@@ -1,1 +1,4 @@
-retrieve,class=rd,expver=xxxx,stream=oper
+retrieve,
+  class=rd,
+  expver=xxxx,
+  stream=oper

@@ -3,10 +3,10 @@
 FROM debian:bookworm-slim AS deps
 
 ARG ECBUILD_VERSION=3.7.2
-ARG ECKIT_VERSION=1.23.0
-ARG METKIT_VERSION=1.10.11
-ARG FDB_VERSION=5.11.10
-ARG ECCODES_VERSION=2.30.2
+ARG ECKIT_VERSION=1.24.2
+ARG METKIT_VERSION=1.10.13
+ARG FDB_VERSION=5.11.17
+ARG ECCODES_VERSION=2.30.4
 
 # Install build-time dependencies.
 RUN apt-get update && \
@@ -143,8 +143,8 @@ RUN fdb-schema
 # The data is in the GRIB format. Here we write the GRIB data into the FDB:
 RUN find /app -name "*.grib" -exec fdb-write {} \;
 
-# Here we dump the table of contents of the data:
-RUN fdb-dump class=rd,expver=xxxx,stream=oper,time=0000
+# Here we list the data loaded. It must contain at least one data row.
+RUN fdb-list class=rd,expver=xxxx,stream=oper,time=0000 | grep "class=rd,expver=xxxx"
 
 # If everything worked, this image should have the following installed and ready to be used:
 # - ecbuild (why not?)
