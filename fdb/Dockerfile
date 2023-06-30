@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------
 # --- ecbuild, eccodes, eckit, metkit, fdb.
-FROM debian:bookworm-slim AS deps
+FROM ubuntu:jammy AS deps
 
 ARG ECBUILD_VERSION=3.7.2
 ARG ECKIT_VERSION=1.24.2
@@ -70,7 +70,7 @@ RUN cd /usr/src/ && \
 
 # -----------------------------------------------------------------------------
 # --- Final base image.
-FROM debian:bookworm-slim
+FROM ubuntu:jammy
 
 ARG AUTHOR
 ARG BUILD_DATE
