@@ -1,30 +1,15 @@
 FROM mambaorg/micromamba:1.4.9-bullseye-slim AS micromamba
 
+# The micromamba image is referenced in a multi-stage build.
+# Note that around 90% of the content of this image is actually
+# for micromamba users, permissions, dependencies, and SSH.
+# The Autosubmit portion is rather small, being mainly install
+# Autosubmit with pip, and run `autosubmit configure` and then
+# `autosubmit install`. It would be possible to create another
+# image autosubmit-base, for example, with the users, permissions,
+# dependencies, and SSH. Which would tremendously reduce this.
+
 FROM debian:bullseye-slim
-
-# Build:
-# docker build -t kinow/autosubmit:4.0.84-bullseye-slim -t kinow/autosubmit:latest .
-#
-# Run:
-# docker run --rm kinow/autosubmit:latest autosubmit --version
-#
-# Run with volumes:
-#
-# Create the directories to hold DB and experiments somewhere
-# mkdir -pv /tmp/autosubmit/{database,experiments}
-# 
-# Create an external DB, for example:
-# docker run --rm -v /tmp/autosubmit/database:/app/autosubmit/database -v /tmp/autosubmit/experiments:/app/autosubmit/experiments kinow/autosubmit:latest autosubmit install
-#
-# Create a dummy experiment
-# docker run --rm -v /tmp/autosubmit/database:/app/autosubmit/database -v /tmp/autosubmit/experiments:/app/autosubmit/experiments kinow/autosubmit:latest autosubmit expid -H local -d test --dummy
-#
-# Confirm any container created with the image can access the experiments
-# docker run --rm -v /tmp/autosubmit/database:/app/autosubmit/database -v /tmp/autosubmit/experiments:/app/autosubmit/experiments kinow/autosubmit:latest autosubmit describe
-#
-# To delete an experiment (-ti if you do not pass `-f`):
-# docker run --rm -ti -v /tmp/autosubmit/database:/app/autosubmit/database -v /tmp/autosubmit/experiments:/app/autosubmit/experiments kinow/autosubmit:latest autosubmit delete -f a000
-
 
 ARG AUTOSUBMIT_ROOT_DIR=/app/autosubmit/
 
@@ -75,9 +60,9 @@ RUN if grep -q '^ID=alpine$' /etc/os-release; then \
       apk add --no-cache --virtual temp-packages shadow=4.13-r0; \
     fi && \
     usermod "--login=${NEW_MAMBA_USER}" "--home=/home/${NEW_MAMBA_USER}" \
-        --move-home "-u ${NEW_MAMBA_USER_ID}" "${MAMBA_USER}" && \
+      --move-home "-u ${NEW_MAMBA_USER_ID}" "${MAMBA_USER}" && \
     groupmod "--new-name=${NEW_MAMBA_USER}" \
-        "-g ${NEW_MAMBA_USER_GID}" "${MAMBA_USER}" && \
+      "-g ${NEW_MAMBA_USER_GID}" "${MAMBA_USER}" && \
     if grep -q '^ID=alpine$' /etc/os-release; then \
       # remove the packages that were only needed for usermod/groupmod
       apk del temp-packages; \
@@ -104,18 +89,38 @@ RUN mkdir -pv "${AUTOSUBMIT_ROOT_DIR}/logs" && \
 
 # update-ca-certificates is for: libmamba No CA certificates found on system.
 # openssh-server is for: Autosubmit platforms.
+# git is for: Autosubmit Git projects.
+# bash, curl, dialog, graphviz, python3-tk, sqlite3 are for: Autosubmit dependencies listed at readthedocs.
+# less, vim, iputils-ping, net-tools are for: convenience.
 RUN apt update && \
-    apt install -y ca-certificates \
-    openssh-server \
-    sudo && \
+    apt install -y \
+      bash=5.1-2+deb11u1 \
+      ca-certificates=20210119 \
+      curl=7.74.0-1.3+deb11u7 \
+      desktop-file-utils=0.26-1 \
+      dialog=1.3-20201126-1 \
+      graphviz=2.42.2-5 \
+      iputils-ping=3:20210202-1 \
+      less=551-2 \
+      net-tools=1.60+git20181103.0eebece-1 \
+      openssh-server=1:8.4p1-5+deb11u1 \
+      python3-tk=3.9.2-1 \
+      sqlite3=3.34.1-3 \
+      sudo=1.9.5p2-3+deb11u1 \
+      vim=2:8.2.2434-3+deb11u1 \
+      xdg-utils=1.1.3-4.1 \
+      xpdf=3.04+git20210103-3 && \
     update-ca-certificates && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 USER $MAMBA_USER
 
+# Install and configure Autosubmit.
+
 # Install Python.
 RUN micromamba install --yes --name base --channel conda-forge \
+      git=2.41.0 \
       python=3.9.16 && \
     micromamba clean --all --yes && \
     /usr/local/bin/_activate_current_env.sh
@@ -130,7 +135,7 @@ RUN autosubmit configure \
       -lr "${AUTOSUBMIT_ROOT_DIR}/experiments/" && \
     autosubmit install
 
-# SSH
+# SSH (for Autosubmit local platform.)
 USER root
 
 RUN chown -R "${MAMBA_USER}:${MAMBA_USER}" "/home/${MAMBA_USER}/" && \
@@ -143,19 +148,25 @@ RUN chown -R "${MAMBA_USER}:${MAMBA_USER}" "/home/${MAMBA_USER}/" && \
     chown -R "${MAMBA_USER}:${MAMBA_USER}" "/home/$MAMBA_USER/.ssh" && \
     usermod -a -G sudo "${MAMBA_USER}" && \
     sed -i "s/^%sudo.*$/%sudo ALL=(ALL:ALL) NOPASSWD:ALL/g" /etc/sudoers && \
-    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/g' /etc/ssh/sshd_config && \
-    sed -i 's/#SyslogFacility/SyslogFacility/g' /etc/ssh/sshd_config && \
-    sed -i 's/#LogLevel INFO/LogLevel VERBOSE/g' /etc/ssh/sshd_config && \
+    sed -i 's/#\?\(PasswordAuthentication\s*\).*$/\1 no/g' /etc/ssh/sshd_config && \
+    sed -i 's/#\?\(SyslogFacility.*\)$/\1/g' /etc/ssh/sshd_config && \
+    sed -i 's/#\?\(LogLevel\).*$/\1 VERBOSE/g' /etc/ssh/sshd_config && \
+    sed -i 's/#\?.*StrictHostKeyChecking.*$/StrictHostKeyChecking accept-new/g' /etc/ssh/ssh_config && \
     env | egrep -v "^(HOME=|USER=|MAIL=|LC_ALL=|LS_COLORS=|LANG=|HOSTNAME=|PWD=|TERM=|SHLVL=|LANGUAGE=|_=)" >> /etc/environment
 
-#COPY ssh-keys/ /keys/
-#RUN cat /keys/ssh_test.pub >> /home/nf2/.ssh/authorized_keys
+# PDF
 
-ARG MAMBA_EXE
-ENV MAMBA_EXE="${MAMBA_EXE}"
+COPY <<EOF /usr/share/applications/defaults.list
+application/pdf=xpdf.desktop
+EOF
+
+RUN update-mime-database /usr/share/mime
+
 USER $MAMBA_USER
 
 EXPOSE 22
+
+LABEL maintainer="kinow"
 
 ENTRYPOINT sudo service ssh restart && /bin/bash
 CMD autosubmit
