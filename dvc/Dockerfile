@@ -1,3 +1,5 @@
+# NOTE: until DVC offers an image; https://github.com/iterative/dvc/discussions/5934
+
 FROM python:3.12-slim-bookworm
 
 RUN pip install -U pip && \
