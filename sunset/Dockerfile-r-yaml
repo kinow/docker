@@ -1,0 +1,7 @@
+FROM r-base:4.3.2
+
+RUN install2.r --error \
+    yaml
+
+CMD ["R"]
+
